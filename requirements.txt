@@ -1,0 +1,9 @@
+langgraph
+langchain
+langchain-core
+langchain-openai
+langchain-anthropic
+streamlit
+python-dotenv
+discord.py-self
+langchain-google-genai

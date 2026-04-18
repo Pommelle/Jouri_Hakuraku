@@ -1,0 +1,25 @@
+services:
+  jouri_nexus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jouri_nexus
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          # 避免 Discord self-bot 被封禁 IP
+          memory: 2G

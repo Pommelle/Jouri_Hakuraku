@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Database
+data/*.db
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary
+scratch/
+*.tmp
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/.streamlit/secrets.toml
