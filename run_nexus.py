@@ -1,4 +1,10 @@
 import os
+
+# Fix OpenSSL conflict between curl_cffi and anaconda on macOS.
+# Must be set before any module imports discord/curl_cffi.
+os.environ["CURL_CFFI_IMPLEMENTATION"] = "Chrome"
+os.environ.setdefault("SSL_CERT_FILE", "/etc/ssl/cert.pem")
+
 import subprocess
 import sys
 import time
@@ -7,6 +13,8 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(__file__))
 from scheduler.daily_rollup import run_daily_rollup
+from scheduler.weekly_rollup import run_weekly_rollup
+from ingestion.discord_listener import run_discord_listener
 
 
 def _next_rollup_time():
@@ -28,6 +36,8 @@ def _rollup_loop():
             yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
             print(f"[Scheduler] Triggering rollup for {yesterday}...")
             run_daily_rollup(yesterday)
+            print("[Scheduler] Triggering weekly/overall rollup...")
+            run_weekly_rollup()
         except Exception as e:
             print(f"[Scheduler] Rollup error: {e}")
 
@@ -38,10 +48,17 @@ def start_scheduler():
     print("[Scheduler] Background rollup scheduler started.")
 
 
+def start_discord_listener():
+    t = threading.Thread(target=run_discord_listener, daemon=True)
+    t.start()
+    print("[Discord] Self-bot listener started.")
+
+
 def start_services():
-    print("Initiating Jouri Hakuraku (常理伯乐) Services...")
+    print("Initiating Jouri Hakuraku Services...")
 
     start_scheduler()
+    start_discord_listener()
 
     print("-> Starting Frontend UI...")
     frontend_process = subprocess.Popen(
@@ -62,4 +79,7 @@ def start_services():
 
 
 if __name__ == "__main__":
+    # Apply any pending DB schema migrations before starting services.
+    from database.init_db import init_db
+    init_db()
     start_services()

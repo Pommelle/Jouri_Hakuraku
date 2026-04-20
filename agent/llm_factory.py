@@ -30,3 +30,30 @@ def get_llm(temperature=0):
         )
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
+
+
+def get_daily_rollup_llm(temperature=0):
+    """
+    Separate LLM factory for daily rollup operations.
+    Reads DAILY_ROLLUP_* env vars independently of the main LLM config.
+    """
+    provider = os.getenv("DAILY_ROLLUP_LLM_PROVIDER", "google").lower()
+
+    if provider == "openai":
+        return ChatOpenAI(
+            model=os.getenv("DAILY_ROLLUP_OPENAI_MODEL", "gpt-4o"),
+            temperature=temperature
+        )
+    elif provider == "anthropic":
+        return ChatAnthropic(
+            model=os.getenv("DAILY_ROLLUP_ANTHROPIC_MODEL", "claude-3-5-sonnet-20240620"),
+            temperature=temperature
+        )
+    elif provider == "google" or provider == "gemini":
+        return ChatGoogleGenerativeAI(
+            model=os.getenv("DAILY_ROLLUP_GEMINI_MODEL", "gemini-3.1-flash-lite-preview"),
+            temperature=temperature,
+            google_api_key=os.getenv("GOOGLE_API_KEY")
+        )
+    else:
+        raise ValueError(f"Unsupported DAILY_ROLLUP_LLM provider: {provider}")

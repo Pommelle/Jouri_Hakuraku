@@ -6,6 +6,9 @@ class AgentState(TypedDict):
     source: str
 
     intel_type: Optional[str]  # 'news' | 'chat' | 'mixed'
+    og_title: Optional[str]     # Discord link preview title
+    og_description: Optional[str]  # Discord link preview description
+
     triage_result: Optional[bool]
     triage_reason: Optional[str]
     confidence_score: Optional[float]
@@ -16,6 +19,7 @@ class AgentState(TypedDict):
 
     team_assignment: Optional[str]
     title: Optional[str]
+    final_synthesis: Optional[str]
     tags: Optional[str]
 
     processed_intel_id: Optional[int]

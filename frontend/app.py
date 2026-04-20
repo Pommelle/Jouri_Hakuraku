@@ -5,18 +5,22 @@ import sqlite3
 import base64
 from datetime import datetime
 from dotenv import load_dotenv
+from streamlit_autorefresh import st_autorefresh
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from database.crud import (
     get_daily_summaries,
     get_center_intel_today,
     get_memory_by_team,
+    get_memory_unsummarized,
     insert_memory,
     delete_memory,
     update_memory,
     get_all_source_confidence,
     upsert_source_confidence,
     delete_source_confidence,
+    get_chunk_summaries_by_date,
+    get_overall_summary,
 )
 
 load_dotenv(override=True)
@@ -32,12 +36,15 @@ TRANSLATIONS = {
         "auth_pwd_label": "请输入访问密码：",
         "auth_submit": "登录",
         "auth_error": "访问被拒绝。",
+        # overall summary
+        "overall_title": "📋 情报总览",
+        "overall_empty": "暂无情报总览，将在每日汇总后自动生成。",
         # sidebar memory
         "sidebar_memory_title": "今日情报流",
         "sidebar_add_memory": "➕ 添加情报",
-        "sidebar_title_label": "标题",
+        "sidebar_title_label": "作者",
         "sidebar_source_label": "来源 / Source",
-        "sidebar_context_label": "分析 / Context",
+        "sidebar_context_label": "内容",
         "sidebar_save": "保存",
         "sidebar_save_error": "字段不能为空",
         "sidebar_empty": "记忆库暂时为空。",
@@ -46,6 +53,12 @@ TRANSLATIONS = {
         "sidebar_edit_source": "来源",
         "sidebar_edit_context": "分析",
         "sidebar_update": "更新",
+        # chunk summary
+        "chunk_summary_title": "情报小结汇总",
+        "chunk_summary_select": "选择情报块",
+        "chunk_summary_empty": "暂无情报块",
+        "chunk_summary_topics": "议题",
+        "chunk_summary_items": "条目数",
         # tracking topic
         "tracking_label": "追踪话题",
         "no_topic": "未设定跟进话题 / No tracking topic set.",
@@ -94,12 +107,15 @@ TRANSLATIONS = {
         "auth_pwd_label": "Enter System Passcode:",
         "auth_submit": "Authenticate",
         "auth_error": "Access Denied.",
+        # overall summary
+        "overall_title": "📋 Overall Intelligence Overview",
+        "overall_empty": "No overall summary yet. It will be generated automatically after each daily rollup.",
         # sidebar memory
         "sidebar_memory_title": "Today's Intelligence Stream",
         "sidebar_add_memory": "➕ Add Intelligence",
-        "sidebar_title_label": "Title",
+        "sidebar_title_label": "Author",
         "sidebar_source_label": "Source",
-        "sidebar_context_label": "Context",
+        "sidebar_context_label": "Content",
         "sidebar_save": "Save",
         "sidebar_save_error": "Fields cannot be empty.",
         "sidebar_empty": "Memory bank is currently empty.",
@@ -108,6 +124,12 @@ TRANSLATIONS = {
         "sidebar_edit_source": "Source",
         "sidebar_edit_context": "Context",
         "sidebar_update": "Update",
+        # chunk summary
+        "chunk_summary_title": "Intelligence Chunks",
+        "chunk_summary_select": "Select chunk",
+        "chunk_summary_empty": "No chunks yet.",
+        "chunk_summary_topics": "Topics",
+        "chunk_summary_items": "items",
         # tracking topic
         "tracking_label": "Tracking Topic",
         "no_topic": "No tracking topic set.",
@@ -315,8 +337,54 @@ def switch_lang(new_lang):
 # ═══════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    st.markdown(f"<div class='sidebar-section-title'>{T('sidebar_memory_title')}</div>", unsafe_allow_html=True)
+    # ── Auto-refresh ────────────────────────────────────────────────
+    st_autorefresh(interval=30000, key="intel_refresh")  # 30s auto-refresh
+    col1, c2 = st.columns([5, 1])
+    with col1:
+        st.markdown(f"<div class='sidebar-section-title'>{T('sidebar_memory_title')}</div>", unsafe_allow_html=True)
+    with c2:
+        st.button("↻", help="Refresh now", key="manual_refresh_btn")
 
+    # ── Memory Chunk Summaries (top of sidebar) ──────────────────────
+    today_chunks = get_chunk_summaries_by_date("memory")
+
+    if today_chunks:
+        with st.expander(T("chunk_summary_title")):
+            chunk_options = {
+                f"#{c['chunk_index']}  {c['created_at'][11:16]}": c
+                for c in today_chunks
+            }
+            selected = st.selectbox(
+                T("chunk_summary_select"),
+                options=list(chunk_options.keys()),
+                key="selected_chunk",
+            )
+            chunk = chunk_options[selected]
+            st.markdown(f"**{T('chunk_summary_topics')}:** {chunk.get('topics', 'N/A')}")
+            if chunk.get('brief_analysis'):
+                st.markdown(chunk['brief_analysis'])
+            source_views_raw = chunk.get('source_views', '')
+            if source_views_raw:
+                try:
+                    import json as _json
+                    topic_details = _json.loads(source_views_raw)
+                    for td in topic_details:
+                        with st.expander(f"  📌 {td.get('topic', 'Unknown')}", expanded=False):
+                            st.markdown(td.get('brief_analysis', ''))
+                            for sv in td.get('source_views', []):
+                                st.markdown(
+                                    f"- **{sv.get('source', '')}** "
+                                    f"{'@ ' + sv['time'] if sv.get('time') else ''}: "
+                                    f"{sv.get('claim', '')}"
+                                )
+                except Exception:
+                    pass
+    else:
+        with st.expander(T("chunk_summary_title")):
+            st.markdown(f"<em style='color:#444;font-size:0.85em;'>{T('chunk_summary_empty')}</em>",
+                        unsafe_allow_html=True)
+
+    # ── Sidebar Memory ────────────────────────────────────────────────
     with st.expander(T("sidebar_add_memory")):
         with st.form(key="add_mem_sidebar", clear_on_submit=True):
             new_title = st.text_input(T("sidebar_title_label"))
@@ -329,7 +397,7 @@ with st.sidebar:
                 else:
                     st.error(T("sidebar_save_error"))
 
-    memories = get_memory_by_team("general")
+    memories = get_memory_unsummarized("general")
     if not memories:
         st.markdown(f"<em style='color:#444;font-size:0.85em;'>{T('sidebar_empty')}</em>", unsafe_allow_html=True)
     else:
@@ -342,10 +410,9 @@ with st.sidebar:
             st.markdown(f"""
             <div class='memory-box'>
                 <div style="display:flex;justify-content:space-between;align-items:baseline;">
-                    <h5>{mem['key_concept']}</h5>
+                    <h5>{mem['author']}</h5>
                     <span style="font-size:0.68em;color:#555;">{ts}</span>
                 </div>
-                <div style="font-size:0.72em;color:#666;margin-bottom:4px;font-style:italic;">Source: {mem['source']}</div>
                 <p>{mem['context']}</p>
             </div>
             """, unsafe_allow_html=True)
@@ -353,7 +420,7 @@ with st.sidebar:
             with c1:
                 with st.popover(T("sidebar_popover_edit")):
                     with st.form(key=f"edit_mem_{mem['id']}", clear_on_submit=True):
-                        e_t = st.text_input(T("sidebar_edit_title"), value=mem['key_concept'])
+                        e_t = st.text_input(T("sidebar_edit_title"), value=mem['author'])
                         e_s = st.text_input(T("sidebar_edit_source"), value=mem['source'])
                         e_c = st.text_area(T("sidebar_edit_context"), value=mem['context'])
                         if st.form_submit_button(T("sidebar_update")):
@@ -408,6 +475,45 @@ st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
 topic_display = TRACKING_TOPIC if TRACKING_TOPIC else T("no_topic")
 st.markdown(f"<div class='topic-para'>{topic_display}</div>", unsafe_allow_html=True)
+
+# ── Overall Summary ──────────────────────────────────────────────
+overall = get_overall_summary()
+if overall:
+    content = overall.get('content', '').strip()
+
+if overall and content:
+    if "overall_expanded" not in st.session_state:
+        st.session_state.overall_expanded = True
+
+    header_col1, header_col2, header_col3 = st.columns([1, 8, 1])
+    with header_col2:
+        st.markdown(
+            f"<h3 style='text-align:center;margin:0;'>{T('overall_title')}</h3>",
+            unsafe_allow_html=True,
+        )
+    with header_col3:
+        toggled = st.button(
+            "收起" if st.session_state.overall_expanded else "展开",
+            key="toggle_overall",
+        )
+        if toggled:
+            st.session_state.overall_expanded = not st.session_state.overall_expanded
+            st.rerun()
+
+    if st.session_state.overall_expanded:
+        try:
+            dt = datetime.strptime(overall['updated_at'][:10], '%Y-%m-%d')
+            updated = dt.strftime(T("date_fmt"))
+        except:
+            updated = overall.get('updated_at', '')
+        st.markdown(
+            f"<em style='color:#555;font-size:0.78em;'>Last updated: {updated}</em>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(f"<div class='summary-card'>{content}</div>", unsafe_allow_html=True)
+else:
+    pass  # 空情报总览，整个区块不渲染
+
 st.divider()
 
 col_left, col_right = st.columns([1, 1])
@@ -431,31 +537,32 @@ st.markdown(f"<h2 style='text-align:center;color:{header_color} !important;text-
 
 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
-try:
-    summaries = get_daily_summaries(days=7)
-except sqlite3.OperationalError:
-    st.error("Database schema out of sync. Please reset the database.")
-    summaries = []
-except Exception as e:
-    st.error(f"Error loading summaries: {e}")
-    summaries = []
+summaries = get_daily_summaries(days=7, team=view)
 
 if not summaries:
-    st.info(T("no_summaries"))
+    team_label = "红队" if view == "red" else "蓝队"
+    st.info(f"{team_label} — {T('no_summaries')}")
 else:
     for s in summaries:
-        date_str = s.get('date', 'Unknown date')
-        try:
-            dt = datetime.strptime(date_str, '%Y-%m-%d')
-            date_display = dt.strftime(T("date_fmt"))
-        except:
-            date_display = date_str
+            date_str = s.get('date', 'Unknown date')
 
-        content = s.get('content', '')
+            # Skip memory entries (date='memory') — rendered separately in sidebar
+            if date_str == 'memory':
+                continue
 
-        st.markdown(f"<div class='summary-date-header'>{date_display}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='summary-content'>{content}</div>", unsafe_allow_html=True)
-        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+            try:
+                dt = datetime.strptime(date_str, '%Y-%m-%d')
+                date_display = dt.strftime(T("date_fmt"))
+            except:
+                date_display = date_str
+
+            content = s.get('content', '')
+            source_hint = s.get('source_hint', '')
+            raw_count = s.get('raw_count', 0)
+
+            st.markdown(f"<div class='summary-date-header'>{date_display}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='summary-content'>{content}</div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════
