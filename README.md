@@ -128,8 +128,9 @@ python run_nexus.py
 ### Deployment
 
 ```bash
-# 1. Upload code to server
-scp -r jouri_hakuraku user@your-server:/opt/
+# 1. Clone the repository on your server
+git clone https://github.com/Pommelle/Jouri_Hakuraku.git
+cd Jouri_Hakuraku
 
 # 2. Configure environment
 cd /opt/jouri_hakuraku
@@ -310,8 +311,9 @@ python run_nexus.py
 ### 部署到服务器
 
 ```bash
-# 1. 上传代码到服务器
-scp -r jouri_hakuraku user@your-server:/opt/
+# 1. 在服务器上克隆代码
+git clone https://github.com/Pommelle/Jouri_Hakuraku.git
+cd Jouri_Hakuraku
 
 # 2. 配置环境变量
 cd /opt/jouri_hakuraku
