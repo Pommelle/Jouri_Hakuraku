@@ -6,6 +6,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'nexus.db')
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
+    conn.execute('PRAGMA journal_mode=WAL;')
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -423,7 +424,9 @@ def _maybe_trigger_memory_chunk():
         from scheduler.daily_rollup import run_memory_chunks
         total = get_memory_unsummarized_count()
         if total >= MEMORY_CHUNK_SIZE:
-            chunks = run_memory_chunks()
+            result = run_memory_chunks()
+            # 从返回的字典中安全提取整型的 chunks 数量
+            chunks = result.get("chunks", 0) if isinstance(result, dict) else 0
             if chunks > 0:
                 print(f"[MemTrigger] {chunks} chunk(s) processed after insert.")
     except Exception as e:
