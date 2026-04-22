@@ -69,8 +69,7 @@ def init_db():
         brief_analysis TEXT,
         source_views TEXT,
         source_confidence TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(date, team, chunk_index)
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )''')
 
     cursor.execute('''
