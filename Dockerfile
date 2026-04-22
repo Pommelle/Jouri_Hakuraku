@@ -14,6 +14,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash nexus
 
+# Install ngrok
+RUN curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | tee /usr/local/bin/ngrok.asc > /dev/null \
+    && curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | gpg --dearmor > /usr/local/bin/ngrok.asc \
+    && curl -sL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar -xz -C /usr/local/bin \
+    && chmod +x /usr/local/bin/ngrok \
+    && rm -f /usr/local/bin/ngrok.asc
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
