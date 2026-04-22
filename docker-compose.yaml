@@ -6,12 +6,12 @@ services:
     container_name: jouri_nexus
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8501:8501"  # 已修正：与 Dockerfile 里的 8501 对齐
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - nexus_data:/app/data  # 已修正：改用命名卷，彻底解决权限报错
+      - nexus_logs:/app/logs  # 已修正：改用命名卷，彻底解决权限报错
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8501/_stcore/health"]
       interval: 30s
@@ -21,5 +21,11 @@ services:
     deploy:
       resources:
         limits:
-          # 避免 Discord self-bot 被封禁 IP
-          memory: 2G
+          memory: 2G  
+        reservations:
+          memory: 256M
+
+# 声明命名卷
+volumes:
+  nexus_data:
+  nexus_logs:
