@@ -44,6 +44,18 @@ python -m scheduler.daily_rollup &
 SCHEDULER_PID=$!
 
 # ============================
+# ngrok tunnel (background)
+# ============================
+if [ -n "$NGROK_AUTH_TOKEN" ]; then
+    echo "[ngrok] Starting tunnel to :8000 ..."
+    ngrok config add-authtoken "$NGROK_AUTH_TOKEN" 2>/dev/null || true
+    ngrok http --domain="$NGROK_DOMAIN" 8000 --log /app/logs/ngrok.log &
+    NGROK_PID=$!
+else
+    echo "[ngrok] NGROK_AUTH_TOKEN not set — skipping tunnel"
+fi
+
+# ============================
 # Streamlit Frontend (foreground)
 # ============================
 echo "[streamlit] Starting frontend on 127.0.0.1:8501..."
