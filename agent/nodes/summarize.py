@@ -13,6 +13,7 @@ from database.crud import (
     get_memory_unsummarized_count,
     get_memory_unsummarized_batch,
     delete_memory_chunks,
+    _get_next_memory_chunk_index,
 )
 from langchain_core.messages import SystemMessage, HumanMessage
 import json
@@ -555,7 +556,7 @@ def memory_chunks_summary_node(state: AgentState) -> dict:
 
     chunks_processed = 0
     chunk_ids = []
-    chunk_index = 0
+    chunk_index = _get_next_memory_chunk_index()
 
     while True:
         memories = get_memory_unsummarized_batch(limit=MEMORY_CHUNK_SIZE)
