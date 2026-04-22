@@ -10,6 +10,42 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    # 1. 【补全】创建原始数据表 - 这是接收 Discord 消息的入口
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS raw_data (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT,
+        content TEXT,
+        author TEXT,
+        intel_type TEXT DEFAULT 'mixed',
+        source_key TEXT,
+        processed INTEGER DEFAULT 0,
+        confidence_score REAL,
+        confidence_rationale TEXT,
+        og_title TEXT,
+        og_description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 2. 【补全】创建处理后的情报表 - 这是 Agent 输出存放的地方
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS processed_intel (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        raw_data_id INTEGER,
+        title TEXT,
+        summary TEXT,
+        red_team_analysis TEXT,
+        blue_team_analysis TEXT,
+        synthesis TEXT,
+        tags TEXT,
+        team_assignment TEXT,
+        intel_type TEXT DEFAULT 'mixed',
+        batch_count INTEGER DEFAULT 0,
+        user_approved INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    # 3. 记忆库
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS memory (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,14 +53,11 @@ def init_db():
         author TEXT NOT NULL,
         source TEXT,
         context TEXT,
+        summarized INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    try:
-        cursor.execute("ALTER TABLE memory ADD COLUMN summarized INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
+    )''')
 
+    # 4. 汇总表
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS chunk_summary (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,16 +71,7 @@ def init_db():
         source_confidence TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(date, team, chunk_index)
-    )
-    ''')
-    try:
-        cursor.execute("ALTER TABLE chunk_summary ADD COLUMN team TEXT NOT NULL DEFAULT 'center'")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cursor.execute("ALTER TABLE chunk_summary ADD COLUMN source_confidence TEXT")
-    except sqlite3.OperationalError:
-        pass
+    )''')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS daily_summary (
@@ -58,8 +82,7 @@ def init_db():
         source_hint TEXT,
         raw_count INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
+    )''')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS overall_summary (
@@ -67,25 +90,10 @@ def init_db():
         content TEXT NOT NULL,
         source_hint TEXT,
         raw_count INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
+    )''')
 
-    # 新增字段（幂等，忽略已存在的报错）
-    try:
-        cursor.execute("ALTER TABLE raw_data ADD COLUMN confidence_score REAL DEFAULT NULL")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cursor.execute("ALTER TABLE raw_data ADD COLUMN confidence_rationale TEXT DEFAULT NULL")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cursor.execute("ALTER TABLE raw_data ADD COLUMN source_key TEXT DEFAULT NULL")
-    except sqlite3.OperationalError:
-        pass
-
+    # 5. 置信度名单
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS source_confidence (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,14 +101,12 @@ def init_db():
         anchor REAL NOT NULL,
         tier TEXT NOT NULL DEFAULT 'medium',
         notes TEXT DEFAULT '',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
+    )''')
 
     conn.commit()
     conn.close()
-    print("Database initialized successfully with new schema.")
+    print("Database initialized successfully with complete schema.")
 
 if __name__ == "__main__":
     init_db()
