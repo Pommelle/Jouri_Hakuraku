@@ -8,3 +8,4 @@ python-dotenv
 discord.py-self
 langchain-google-genai
 streamlit_autorefresh
+schedule
