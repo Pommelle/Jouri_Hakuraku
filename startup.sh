@@ -40,7 +40,7 @@ DISCORD_PID=$!
 # Daily Rollup Scheduler (background)
 # ============================
 echo "[scheduler] Starting daily rollup scheduler..."
-python -m scheduler.daily_rollup &
+python -m scheduler.daily_rollup --daemon &
 SCHEDULER_PID=$!
 
 # ============================
