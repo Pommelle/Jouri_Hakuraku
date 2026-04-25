@@ -128,6 +128,10 @@ def run_daily_rollup(target_date: str = None, teams=None):
 
 if __name__ == "__main__":
     import argparse
+    import schedule
+    import time
+    import traceback
+
     parser = argparse.ArgumentParser(description="Daily intelligence rollup")
     parser.add_argument("--date", type=str, default=None,
                         help="Target date YYYY-MM-DD (defaults to yesterday)")
@@ -135,11 +139,46 @@ if __name__ == "__main__":
                         help="Comma-separated teams to process (default: red,blue)")
     parser.add_argument("--memory-only", action="store_true",
                         help="Run only the memory sidebar pipeline")
+    # 【新增】一个后台挂机模式参数
+    parser.add_argument("--daemon", action="store_true",
+                        help="Run continuously in the background (Scheduler mode)")
     args = parser.parse_args()
 
-    if args.memory_only:
-        run_memory_chunks()
-        run_memory_rollup()
+    # 提取队伍
+    teams = [t.strip() for t in args.teams.split(",") if t.strip()]
+
+    if args.daemon:
+        # ==========================================
+        # 守护进程模式（永远不死，每天定时执行）
+        # ==========================================
+        def scheduled_job():
+            print(f"\n⏰ [Scheduler] 定时任务触发！当前时间: {datetime.now()}", flush=True)
+            try:
+                # 默认不传 date，让它自动抓取“昨天”的数据
+                run_daily_rollup(None, teams=teams)
+            except Exception as e:
+                print(f"❌ [Scheduler] 定时任务遭遇未捕获异常: {e}", flush=True)
+                traceback.print_exc()
+
+        # 设定每天晚上 23:55 执行大盘点（你可以自己改时间）
+        schedule.every().day.at("23:55").do(scheduled_job)
+        
+        print("🚀 [Scheduler] 定时汇总守护进程已启动！设定每天 23:55 执行...", flush=True)
+        
+        while True:
+            try:
+                schedule.run_pending()
+                time.sleep(60) # 每分钟检查一次时间
+            except Exception as e:
+                print(f"⚠️ [Scheduler] 调度器主循环报警: {e}", flush=True)
+                time.sleep(60)
     else:
-        teams = [t.strip() for t in args.teams.split(",") if t.strip()]
-        run_daily_rollup(args.date, teams=teams)
+        # ==========================================
+        # 临时工模式（手动执行一次就退出，用于测试）
+        # ==========================================
+        print("🛠️ [CLI] 执行单次手动汇总...", flush=True)
+        if args.memory_only:
+            run_memory_chunks()
+            run_memory_rollup()
+        else:
+            run_daily_rollup(args.date, teams=teams)
