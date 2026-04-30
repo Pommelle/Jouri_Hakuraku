@@ -159,13 +159,9 @@ def summarize_node(state: AgentState, team: str = "center") -> dict:
     # Read ALL chunks for the date — shared view for both teams
     all_chunks = get_chunk_summaries_by_date(target_date, team=None)
     if not all_chunks:
-        intel_list = get_center_intel_by_date(target_date, team="center")
-        if not intel_list:
-            print(f"[Summarize] No chunks and no intel for {target_date}, skipping.")
-            return {"date": target_date, "red_summary_id": None, "blue_summary_id": None, "team": "joint"}
-        return _do_raw_joint_rollup(target_date, intel_list, llm)
-    else:
-        return _do_joint_rollup(target_date, all_chunks, llm)
+        print(f"[Summarize] No chunks for {target_date}, skipping rollup.")
+        return {"date": target_date, "red_summary_id": None, "blue_summary_id": None, "team": "joint"}
+    return _do_joint_rollup(target_date, all_chunks, llm)
 
 
 def _build_chunk_topic_parts(c: dict) -> str:
