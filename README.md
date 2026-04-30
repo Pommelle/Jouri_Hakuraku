@@ -80,7 +80,7 @@ The platform ships with a **Discord self-bot listener** out of the box. The arch
 | Agent Framework | LangGraph |
 | Database | SQLite |
 | Web UI | Streamlit |
-| Reverse Proxy | Nginx |
+| Reverse Proxy / Tunnel | Nginx / ngrok |
 | Container | Docker / Docker Compose |
 | Discord | discord.py-self |
 
@@ -99,6 +99,7 @@ cp .env.example .env
 nano .env
 # Required: GOOGLE_API_KEY, DISCORD_USER_TOKEN
 # Recommended: APP_AUTH_KEY (access password), TRACKING_TOPIC
+# Optional: NGROK_AUTH_TOKEN (for public tunnel access)
 ```
 
 #### 3. Docker (Recommended)
@@ -124,6 +125,25 @@ python run_nexus.py
 3. Add the channel ID to `DISCORD_CHANNEL_IDS` in `.env`
 4. Add trusted channel IDs to `TRUSTED_CHANNEL_IDS` (these bypass AI scoring and ingest directly)
 5. Get your **User Token**: Discord app window → F12 → Network tab → send any message → find `Authorization` in request headers
+
+#### 6. Optional: Public Access via ngrok
+
+If you want to access the dashboard from outside your network without configuring port forwarding, you can use ngrok to create a public tunnel.
+
+1. Sign up at [ngrok.com](https://ngrok.com) and get your authtoken from the [dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+2. Add the authtoken to your `.env` file:
+
+```bash
+NGROK_AUTH_TOKEN="your_ngrok_authtoken_here"
+```
+
+3. The `startup.sh` script will automatically start an ngrok tunnel when `NGROK_AUTH_TOKEN` is configured. After startup, the public URL will be printed in the container logs:
+
+```bash
+docker logs -f jouri_nexus | grep "ngrok"
+```
+
+> **Security Note:** Since your dashboard may not have authentication enabled by default, it is strongly recommended to set `APP_AUTH_KEY` in `.env` before exposing it publicly.
 
 ### Deployment
 
@@ -263,7 +283,7 @@ GNU General Public License v3.0 (GPLv3)
 | 智能体框架 | LangGraph |
 | 数据库 | SQLite |
 | 前端 | Streamlit |
-| 反向代理 | Nginx |
+| 反向代理 / 公网隧道 | Nginx / ngrok |
 | 容器化 | Docker / Docker Compose |
 | Discord | discord.py-self |
 
@@ -282,6 +302,7 @@ cp .env.example .env
 nano .env
 # 必填：GOOGLE_API_KEY、DISCORD_USER_TOKEN
 # 建议设置：APP_AUTH_KEY（访问密码）、TRACKING_TOPIC（追踪话题）
+# 可选：NGROK_AUTH_TOKEN（用于公网访问隧道）
 ```
 
 #### 3. Docker 部署（推荐）
@@ -307,6 +328,25 @@ python run_nexus.py
 3. 将频道 ID 填入 `.env` 的 `DISCORD_CHANNEL_IDS`
 4. 在 `TRUSTED_CHANNEL_IDS` 中标记可信频道（这些频道的消息跳过 AI 评分直接入库）
 5. 获取 User Token：Discord 窗口 → 按 `F12` → Network 选项卡 → 发送任意消息 → 在请求头中找到 `Authorization` 字段
+
+#### 6. 可选：使用 ngrok 公网访问
+
+如果在没有配置端口转发的情况下希望从外部网络访问看板，可以使用 ngrok 创建公网隧道。
+
+1. 在 [ngrok.com](https://ngrok.com) 注册账号，从 [仪表盘](https://dashboard.ngrok.com/get-started/your-authtoken) 获取 authtoken
+2. 将 authtoken 添加到 `.env` 文件中：
+
+```bash
+NGROK_AUTH_TOKEN="your_ngrok_authtoken_here"
+```
+
+3. `startup.sh` 脚本会在检测到 `NGROK_AUTH_TOKEN` 已配置后自动启动 ngrok 隧道。启动后可以在容器日志中查看公网 URL：
+
+```bash
+docker logs -f jouri_nexus | grep "ngrok"
+```
+
+> **安全提示：** 建议在公网暴露之前务必在 `.env` 中设置 `APP_AUTH_KEY`，防止未授权访问。
 
 ### 部署到服务器
 
