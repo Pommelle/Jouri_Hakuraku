@@ -143,7 +143,6 @@ NGROK_AUTH_TOKEN="your_ngrok_authtoken_here"
 docker logs -f jouri_nexus | grep "ngrok"
 ```
 
-> **Security Note:** Since your dashboard may not have authentication enabled by default, it is strongly recommended to set `APP_AUTH_KEY` in `.env` before exposing it publicly.
 
 ### Deployment
 
@@ -346,7 +345,6 @@ NGROK_AUTH_TOKEN="your_ngrok_authtoken_here"
 docker logs -f jouri_nexus | grep "ngrok"
 ```
 
-> **安全提示：** 建议在公网暴露之前务必在 `.env` 中设置 `APP_AUTH_KEY`，防止未授权访问。
 
 ### 部署到服务器
 
