@@ -287,22 +287,27 @@ def insert_daily_summary(date: str, content: str, source_hint: str = None, raw_c
     return last_id
 
 
-def get_daily_summaries(days: int = 7, team: str = None) -> List[Dict[str, Any]]:
+def get_daily_summaries(days: int = 7, team: str = None, limit: int = 20) -> List[Dict[str, Any]]:
     conn = get_connection()
     cursor = conn.cursor()
     if team is not None:
         cursor.execute(
             "SELECT * FROM daily_summary WHERE team = ? ORDER BY date DESC, id DESC LIMIT ?",
-            (team, days)
+            (team, limit)
         )
     else:
         cursor.execute(
             "SELECT * FROM daily_summary ORDER BY date DESC, id DESC LIMIT ?",
-            (days,)
+            (limit,)
         )
     rows = cursor.fetchall()
     conn.close()
-    return [dict(row) for row in rows]
+    result = [dict(row) for row in rows]
+    # Safety cap: truncate each content field if absurdly large
+    for item in result:
+        if item.get('content') and len(item['content']) > 500_000:
+            item['content'] = item['content'][:500_000] + "\n[TRUNCATED]"
+    return result
 
 
 def insert_chunk_summary(date: str, chunk_index: int, raw_count: int, topics: str = None, brief_analysis: str = None, source_views: str = None, source_confidence: str = None, team: str = "center") -> int:
@@ -343,18 +348,18 @@ def delete_memory_chunks() -> int:
     return deleted
 
 
-def get_chunk_summaries_by_date(date: str, team: str = None) -> List[Dict[str, Any]]:
+def get_chunk_summaries_by_date(date: str, team: str = None, limit: int = 20) -> List[Dict[str, Any]]:
     conn = get_connection()
     cursor = conn.cursor()
     if team:
         cursor.execute(
-            "SELECT * FROM chunk_summary WHERE date = ? AND team = ? ORDER BY chunk_index ASC",
-            (date, team)
+            "SELECT * FROM chunk_summary WHERE date = ? AND team = ? ORDER BY chunk_index ASC LIMIT ?",
+            (date, team, limit)
         )
     else:
         cursor.execute(
-            "SELECT * FROM chunk_summary WHERE date = ? ORDER BY chunk_index ASC",
-            (date,)
+            "SELECT * FROM chunk_summary WHERE date = ? ORDER BY chunk_index ASC LIMIT ?",
+            (date, limit)
         )
     rows = cursor.fetchall()
     conn.close()
@@ -382,7 +387,11 @@ def get_overall_summary() -> Optional[Dict[str, Any]]:
     cursor.execute("SELECT * FROM overall_summary ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     conn.close()
-    return dict(row) if row else None
+    content = dict(row) if row else None
+    # Safety cap: truncate if absurdly large (> 1MB)
+    if content and content.get('content') and len(content['content']) > 1_000_000:
+        content['content'] = content['content'][:1_000_000] + "\n[TRUNCATED due to size]"
+    return content
 
 
 def upsert_overall_summary(content: str, source_hint: str = None, raw_count: int = 0) -> int:
@@ -462,12 +471,12 @@ def get_memory_by_team(team: str) -> List[Dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def get_memory_unsummarized(team: str) -> List[Dict[str, Any]]:
+def get_memory_unsummarized(team: str, limit: int = 100) -> List[Dict[str, Any]]:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM memory WHERE team = ? AND summarized = 0 ORDER BY created_at DESC",
-        (team,)
+        "SELECT * FROM memory WHERE team = ? AND summarized = 0 ORDER BY created_at DESC LIMIT ?",
+        (team, limit)
     )
     rows = cursor.fetchall()
     conn.close()
