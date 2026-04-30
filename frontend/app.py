@@ -537,7 +537,7 @@ st.markdown(f"<h2 style='text-align:center;color:{header_color} !important;text-
 
 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
-summaries = get_daily_summaries(days=7, team=view)
+    summaries = get_daily_summaries(days=7, team=view, limit=20)
 
 if not summaries:
     team_label = "红队" if view == "red" else "蓝队"
