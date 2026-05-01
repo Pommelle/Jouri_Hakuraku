@@ -160,8 +160,7 @@ if __name__ == "__main__":
                 print(f"❌ [Scheduler] 定时任务遭遇未捕获异常: {e}", flush=True)
                 traceback.print_exc()
 
-        # 设定每天晚上 23:55 执行大盘点（你可以自己改时间）
-        schedule.every().day.at("23:55").do(scheduled_job)
+        schedule.every().day.at("00:05").do(scheduled_job)
         
         print("🚀 [Scheduler] 定时汇总守护进程已启动！设定每天 23:55 执行...", flush=True)
         
